@@ -15,6 +15,7 @@ import { MyContext } from "./MyContext";
 import { createAccessToken, createRefreshToken } from "./auth";
 import { isAuth } from "./isAuth";
 import { sendRefreshToken } from "./sendRefreshToken";
+import { verify } from "jsonwebtoken";
 
 @ObjectType()
 class LoginResponse {
@@ -36,8 +37,27 @@ export class UserResolvers {
   }
 
   @Query(() => [User])
-  users() {
-    return User.find();
+  async users() {
+    return await User.find();
+  }
+
+  @Query(() => User, { nullable: true })
+  async me(@Ctx() context: MyContext) {
+    const authorization = context.req.headers["authorization"];
+
+    if (!authorization) {
+      return null;
+    }
+
+    try {
+      const token = authorization.split(" ")[1];
+      const payload: any = verify(token, process.env.ACCESS_TOKEN_SECRET!);
+      const user = await User.findOneBy({ id: payload.userId });
+      return user;
+    } catch (error) {
+      console.log(error);
+      return null;
+    }
   }
 
   @Mutation(() => Boolean)
